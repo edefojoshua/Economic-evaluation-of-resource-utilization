@@ -1,0 +1,82 @@
+---
+title: "Economic evluation of resource utilization"
+author: "Joshua Edefo"
+date: "2024-01-08"
+output: github_document
+---
+Libraries
+```{r a, message=FALSE}
+#Discrete event simulation
+library(simmer)
+library(simmer.plot)
+library(magrittr)
+library (gridExtra)
+
+```
+
+Out patient department
+```{r b}
+env<-simmer("outpatient_clinic")
+
+env
+
+# create patient trajectory
+patient<-trajectory(name= "Patient Path", verbose = T)
+patient
+
+# draw model 
+patient %>%
+  
+  seize("nurse", 1) %>%  ## need to define resources
+  timeout(function() rnorm(1, 15, 3)) %>%
+  release("nurse", 1) %>%
+  
+  seize("doctor", 1) %>% ## need to define resources
+  timeout(function() rnorm(1, 20, 4)) %>%
+  release("doctor", 1) %>%
+  
+  seize("phar", 1) %>% ## need to define resources
+  timeout(function() rnorm(1, 15, 3.5)) %>%
+  release("phar", 1)
+
+time1 = Sys.time()
+
+
+envs<-lapply(1:10000, function(i) {
+  simmer("outpatient clinic") %>%
+    add_resource("nurse", 3) %>%
+    add_resource("doctor", 4) %>%
+    add_resource("phar", 3)%>% 
+    add_generator("patient", patient,function()rnorm(1, 5, 0.5)) %>%
+run(600) %>%
+  wrap()
+})
+
+time2=Sys.time()
+time2-time1
+
+resources<-get_mon_resources(envs)
+p1=plot(resources, metric = "utilization")
+
+p2=plot(resources, metric = "usage", c("nurse", "doctor", "phar"), items = c ("queue", "server"))
+
+     
+arrivals <- get_mon_arrivals (envs)
+
+p3= plot (arrivals, metric="waiting_time") 
+
+p4=plot (arrivals, metric="activity_time") 
+
+grid.arrange(p1,p2,p3,p4)
+
+```
+
+Session information
+
+You can also embed plots, for example:
+
+```{r c, message=FALSE}
+sessionInfo()
+```
+
+The end
